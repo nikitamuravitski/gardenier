@@ -1,9 +1,14 @@
 import { Application } from 'pixi.js'
 import { World } from './ecs/World'
+import { RoadGraph } from './RoadGraph'
 import type { System } from './ecs/System'
 import { RenderSystem } from '@/systems/rendering/RenderSystem'
 import { CameraSystem } from '@/systems/camera/CameraSystem'
 import { InputSystem } from '@/systems/input/InputSystem'
+import { RoadPlacementSystem } from '@/systems/roads/RoadPlacementSystem'
+import { RoadGraphDebugSystem } from '@/systems/roads/RoadGraphDebugSystem'
+import { PaperJsCurveService } from '@/services/PaperJsCurveService'
+import type { ICurveService } from '@/services/CurveService'
 
 /**
  * Main game class - coordinates all systems and the game loop
@@ -11,6 +16,8 @@ import { InputSystem } from '@/systems/input/InputSystem'
 export class Game {
   private app: Application
   private world: World
+  private roadGraph: RoadGraph
+  private curveService: ICurveService
   private systems: System[] = []
   private lastTime = 0
   private running = false
@@ -19,6 +26,8 @@ export class Game {
     // Create PixiJS application
     this.app = new Application()
     this.world = new World()
+    this.roadGraph = new RoadGraph()
+    this.curveService = new PaperJsCurveService()
   }
 
   /**
@@ -41,7 +50,11 @@ export class Game {
     // Register systems (order matters!)
     this.registerSystem(new InputSystem(this.app.canvas))
     this.registerSystem(new CameraSystem())
-    this.registerSystem(new RenderSystem(this.app.stage))
+    this.registerSystem(
+      new RoadPlacementSystem(this.app.canvas, this.app.stage, this.roadGraph, this.curveService)
+    )
+    this.registerSystem(new RenderSystem(this.app.stage, this.curveService))
+    this.registerSystem(new RoadGraphDebugSystem(this.app.stage, this.roadGraph))
 
     // Initialize all systems
     for (const system of this.systems) {
@@ -105,7 +118,7 @@ export class Game {
   destroy(): void {
     this.stop()
     for (const system of this.systems) {
-      system.destroy?()
+      system.destroy?.()
     }
     this.app.destroy()
   }
